@@ -6,6 +6,8 @@ import(
 	"fiy/common/log"
 	"fiy/tools"
 	"fmt"
+	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
+	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm/v20170312"
 	"gorm.io/gorm/clause"
 )
@@ -31,10 +33,12 @@ func (c *tenCetYun) TccList(infoID int)(err error) {
 		cvmClient *v20170312.Client
 	)
 	for _, s := range c.Region {
-		cvmClient, err = v20170312.NewClientWithSecretId(
-			tools.Strip(c.AK),
-			tools.Strip(c.SK),
+		credential :=common.NewCredential(tools.Strip(c.AK),tools.Strip(c.SK))
+
+		cvmClient, err = v20170312.NewClient(
+			credential,
 			tools.Strip(s),
+			profile.NewClientProfile(),
 		)
 		if err != nil {
 			log.Errorf("创建客户端连接失败，%v", err)
