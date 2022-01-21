@@ -128,12 +128,15 @@ func syncCloud() (err error) {
 			}else if t.AccountType == "tencent" {
 				regionList := make([]string, 0)
 				err = json.Unmarshal(t.Region,&regionList)
-				tenCentYunClent := tencent.NewTencentYun(t.AccountSecret,t.AccountKey,regionList)
+				fmt.Println("2",err)
+				tenCentYunClient := tencent.NewTencentYun(t.AccountSecret,t.AccountKey,regionList)
 				if t.ResourceType == 1 {
-					err = tenCentYunClent.TccList(t.ResourceModel)
+					err = tenCentYunClient.TccList(t.ResourceModel)
+					fmt.Println("1",err)
 				}
 				if err != nil {
 					errValue := fmt.Sprintf("同步腾讯云资源失败，%v", err)
+					fmt.Println(errValue)
 					log.Error(errValue)
 					panic(errValue)
 				}else {
