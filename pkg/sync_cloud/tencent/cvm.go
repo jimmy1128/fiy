@@ -1,5 +1,6 @@
 package tencent
-import(
+
+import (
 	"encoding/json"
 	"fiy/app/cmdb/models/resource"
 	orm "fiy/common/global"
@@ -32,9 +33,9 @@ func (c *tenCetYun) TccList(infoID int)(err error) {
 		dataList  []resource.Data
 		cvmClient *v20170312.Client
 	)
-	for _, s := range c.Region {
-		credential :=common.NewCredential(tools.Strip(c.AK),tools.Strip(c.SK))
 
+	for _, s := range c.Region {
+		credential :=common.NewCredential(tools.Strip(c.SK),tools.Strip(c.AK))
 		cvmClient, err = v20170312.NewClient(
 			credential,
 			tools.Strip(s),
@@ -44,14 +45,30 @@ func (c *tenCetYun) TccList(infoID int)(err error) {
 			log.Errorf("创建客户端连接失败，%v", err)
 			return
 		}
+
 		request := v20170312.NewDescribeInstancesRequest()
 		response, err = cvmClient.DescribeInstances(request)
 		if err != nil {
 			log.Errorf("查询ECS实例列表失败，%v", err)
 			return
 		}
+		if int(*response.Response.TotalCount) > 0{
+			b := int(*response.Response.TotalCount)/100 +1
+
+			for i:=0; i > b; i++ {
+				request.Offset = common.Int64Ptr(int64(100 * i))
+				request.Limit = common.Int64Ptr(100)
+				r, err := cvmClient.DescribeInstances(request)
+				if err != nil {
+					log.Errorf("查询ECS实例列表失败，%v", err)
+					return err
+				}
+				cvmList = append(cvmList, r.Response.InstanceSet...)
+			}
+		}
 	}
-		cvmList = append(cvmList, response.Response.InstanceSet...)
+
+
 		for _, instance := range cvmList {
 			var d []byte
 			d, err = json.Marshal(instance)
@@ -73,7 +90,7 @@ func (c *tenCetYun) TccList(infoID int)(err error) {
 				return
 			}
 			dataList = append(dataList, resource.Data{
-				Uuid:   fmt.Sprintf("tencentyun-cvm-%s", instance.InstanceId),
+				Uuid:   fmt.Sprintf("tencentyun-cvm-%s", *instance.InstanceId),
 				InfoId: infoID,
 				Status: 0,
 				Data:   d,

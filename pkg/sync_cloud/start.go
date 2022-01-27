@@ -3,6 +3,7 @@ package sync_cloud
 import (
 	"encoding/json"
 	"fiy/pkg/sync_cloud/baidu"
+	"fiy/pkg/sync_cloud/huawei"
 	"fiy/pkg/sync_cloud/tencent"
 	"fmt"
 	"time"
@@ -128,14 +129,31 @@ func syncCloud() (err error) {
 			}else if t.AccountType == "tencent" {
 				regionList := make([]string, 0)
 				err = json.Unmarshal(t.Region,&regionList)
-				fmt.Println("2",err)
 				tenCentYunClient := tencent.NewTencentYun(t.AccountSecret,t.AccountKey,regionList)
 				if t.ResourceType == 1 {
 					err = tenCentYunClient.TccList(t.ResourceModel)
-					fmt.Println("1",err)
 				}
 				if err != nil {
 					errValue := fmt.Sprintf("同步腾讯云资源失败，%v", err)
+					log.Error(errValue)
+					panic(errValue)
+				}else {
+					c <- syncStatus{
+						ID: t.Id,
+						Status: true,
+					}
+				}
+			}else if t.AccountType == "huawei" {
+				regionList := make([]string, 0)
+				err = json.Unmarshal(t.Region,&regionList)
+				fmt.Println("2",err)
+				huaWeiYunClient := huawei.NewhuaWeiYun(t.AccountSecret,t.AccountKey,regionList)
+				if t.ResourceType == 1 {
+					err = huaWeiYunClient.EcsList(t.ResourceModel)
+					fmt.Println("1",err)
+				}
+				if err != nil {
+					errValue := fmt.Sprintf("同步华为云资源失败，%v", err)
 					fmt.Println(errValue)
 					log.Error(errValue)
 					panic(errValue)
