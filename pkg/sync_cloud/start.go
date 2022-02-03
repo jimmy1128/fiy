@@ -93,7 +93,7 @@ func syncCloud() (err error) {
 
 				aLiYunClient := aliyun.NewALiYun(t.AccountSecret, t.AccountKey, regionList)
 				if t.ResourceType == 1 { // 查询云主机资产
-					err = aLiYunClient.EcsList(t.ResourceModel)
+					err = aLiYunClient.EcsList(t.ResourceModel,t.Name)
 				}
 
 				if err != nil {
@@ -113,7 +113,7 @@ func syncCloud() (err error) {
 
 				baiDuYunClient := baidu.NewBaiDuYun(t.AccountSecret, t.AccountKey, regionList)
 				if t.ResourceType == 1 { // 查询云主机资产
-					err = baiDuYunClient.BccList(t.ResourceModel)
+					err = baiDuYunClient.BccList(t.ResourceModel,t.Name)
 				}
 
 				if err != nil {
@@ -131,7 +131,7 @@ func syncCloud() (err error) {
 				err = json.Unmarshal(t.Region,&regionList)
 				tenCentYunClient := tencent.NewTencentYun(t.AccountSecret,t.AccountKey,regionList)
 				if t.ResourceType == 1 {
-					err = tenCentYunClient.TccList(t.ResourceModel)
+					err = tenCentYunClient.TccList(t.ResourceModel,t.Name)
 
 				}
 				if err != nil {
@@ -150,7 +150,7 @@ func syncCloud() (err error) {
 				err = json.Unmarshal(t.Region,&regionList)
 				huaWeiYunClient := huawei.NewhuaWeiYun(t.AccountSecret,t.AccountKey,regionList)
 				if t.ResourceType == 1 {
-					err = huaWeiYunClient.EcsList(t.ResourceModel)
+					err = huaWeiYunClient.EcsList(t.ResourceModel,t.Name)
 				}
 				if err != nil {
 					errValue := fmt.Sprintf("同步华为云资源失败，%v", err)

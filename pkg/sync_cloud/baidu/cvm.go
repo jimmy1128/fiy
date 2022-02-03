@@ -5,6 +5,7 @@ import (
 	"fiy/app/cmdb/models/resource"
 	orm "fiy/common/global"
 	"fiy/common/log"
+	"fiy/pkg/es"
 	"fiy/tools"
 	"fmt"
 	"github.com/baidubce/bce-sdk-go/services/bcc"
@@ -30,7 +31,7 @@ func NewBaiDuYun(sk, ak string, region []string) *baiDuYun {
 	}
 }
 
-func (b *baiDuYun) BccList(infoID int) (err error) {
+func (b *baiDuYun) BccList(infoID int,infoName string) (err error) {
 	var (
 
 		result        *api.ListInstanceResult
@@ -97,6 +98,11 @@ func (b *baiDuYun) BccList(infoID int) (err error) {
 		Columns:   []clause.Column{{Name: "uuid"}},
 		DoUpdates: clause.AssignmentColumns([]string{"data"}),
 	}).Create(&instancesList).Error
+	err = es.EsClient.Add(instancesList)
+	if err != nil {
+		log.Errorf("索引数据失败，%v", err)
+		return
+	}
 
 	return
 }

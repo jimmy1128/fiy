@@ -27,7 +27,7 @@ func NewTencentYun(sk,ak string,region []string) *tenCetYun{
 	}
 }
 
-func (c *tenCetYun) TccList(infoID int)(err error) {
+func (c *tenCetYun) TccList(infoID int,infoName string)(err error) {
 	var (
 		response  *v20170312.DescribeInstancesResponse
 		cvmList   []*v20170312.Instance
@@ -93,6 +93,7 @@ func (c *tenCetYun) TccList(infoID int)(err error) {
 			dataList = append(dataList, resource.Data{
 				Uuid:   fmt.Sprintf("tencentyun-cvm-%s", *instance.InstanceId),
 				InfoId: infoID,
+				InfoName: infoName,
 				Status: 0,
 				Data:   d,
 			})
@@ -102,7 +103,11 @@ func (c *tenCetYun) TccList(infoID int)(err error) {
 			Columns:   []clause.Column{{Name: "uuid"}},
 			DoUpdates: clause.AssignmentColumns([]string{"data"}),
 		}).Create(&dataList).Error
-        es.EsClient.Add(dataList)
+        err = es.EsClient.Add(dataList)
+	if err != nil {
+		log.Errorf("索引数据失败，%v", err)
+		return
+	}
 		return
 
 }

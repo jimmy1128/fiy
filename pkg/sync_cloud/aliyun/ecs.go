@@ -2,6 +2,7 @@ package aliyun
 
 import (
 	"encoding/json"
+	"fiy/pkg/es"
 	"fmt"
 
 	"fiy/app/cmdb/models/resource"
@@ -32,7 +33,7 @@ func NewALiYun(sk, ak string, region []string) *aLiYun {
 	}
 }
 
-func (a *aLiYun) EcsList(infoID int) (err error) {
+func (a *aLiYun) EcsList(infoID int,infoName string) (err error) {
 	var (
 
 		response  *ecs.DescribeInstancesResponse
@@ -86,6 +87,7 @@ func (a *aLiYun) EcsList(infoID int) (err error) {
 		dataList = append(dataList, resource.Data{
 			Uuid:   fmt.Sprintf("aliyun-ecs-%s", v.InstanceId),
 			InfoId: infoID,
+			InfoName: infoName,
 			Status: 0,
 			Data:   d,
 		})
@@ -96,7 +98,11 @@ func (a *aLiYun) EcsList(infoID int) (err error) {
 		Columns:   []clause.Column{{Name: "uuid"}},
 		DoUpdates: clause.AssignmentColumns([]string{"data"}),
 	}).Create(&dataList).Error
-
+	err = es.EsClient.Add(dataList)
+	if err != nil {
+		log.Errorf("索引数据失败，%v", err)
+		return
+	}
 	return
 }
 

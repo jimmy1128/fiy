@@ -5,6 +5,7 @@ import (
 	"fiy/app/cmdb/models/resource"
 	orm "fiy/common/global"
 	"fiy/common/log"
+	"fiy/pkg/es"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/basic"
 	v2 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/ecs/v2"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/ecs/v2/model"
@@ -28,7 +29,7 @@ func NewhuaWeiYun(sk, ak string, region []string) *huaWeiYun{
 	}
 }
 
-func (d *huaWeiYun) EcsList(infoID int)(err error){
+func (d *huaWeiYun) EcsList(infoID int,infoName string)(err error){
 	var (
 		response       *model.ListServersDetailsResponse
 		ecsList  []model.ServerDetail
@@ -86,6 +87,7 @@ func (d *huaWeiYun) EcsList(infoID int)(err error){
 		dataList = append(dataList, resource.Data{
 			Uuid:   fmt.Sprintf("huaweiyun-ecs-%s", instance.Id),
 			InfoId: infoID,
+			InfoName: infoName,
 			Status: 0,
 			Data:   d,
 		})
@@ -94,6 +96,11 @@ func (d *huaWeiYun) EcsList(infoID int)(err error){
 		Columns:   []clause.Column{{Name: "uuid"}},
 		DoUpdates: clause.AssignmentColumns([]string{"data"}),
 	}).Create(&dataList).Error
+	err = es.EsClient.Add(dataList)
+	if err != nil {
+		log.Errorf("索引数据失败，%v", err)
+		return
+	}
 	return
 
 }
