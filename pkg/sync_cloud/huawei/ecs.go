@@ -30,10 +30,10 @@ func NewhuaWeiYun(sk, ak string, region []string) *huaWeiYun{
 
 func (d *huaWeiYun) EcsList(infoID int)(err error){
 	var (
-		_        *model.ListServersDetailsResponse
+		response       *model.ListServersDetailsResponse
 		ecsList  []model.ServerDetail
 		dataList []resource.Data
-		_        *v2.EcsClient
+		ecsClient *v2.EcsClient
 	)
 	for _, s := range d.Region {
 		auth := basic.NewCredentialsBuilder().
@@ -41,17 +41,17 @@ func (d *huaWeiYun) EcsList(infoID int)(err error){
 			WithSk(d.SK).
 			//WithProjectId("d2100da5212b4007a1ece0a1c9ce31ac").
 			Build()
-		ecsClient :=v2.NewEcsClient(v2.EcsClientBuilder().WithRegion(region.ValueOf(s)).WithCredential(auth).Build())
+		ecsClient =v2.NewEcsClient(v2.EcsClientBuilder().WithRegion(region.ValueOf(s)).WithCredential(auth).Build())
 		limit :=int32(1)
 		request := &model.ListServersDetailsRequest{Limit: &limit}
-		response, err := ecsClient.ListServersDetails(request)
+		response, err = ecsClient.ListServersDetails(request)
 		if err != nil {
 			log.Errorf("查询ECS实例列表失败，%v", err)
 			return
 		}
 		b := int(*response.Count)/100 +1
 		if int(*response.Count) > 0{
-			for i:=0; i > b;i++{
+			for i:=0; i < b;i++{
 				request.Offset = Int32Ptr(int32(100*1))
 				request.Limit = Int32Ptr(100)
 				r,err :=ecsClient.ListServersDetails(request)

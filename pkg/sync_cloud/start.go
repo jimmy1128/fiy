@@ -132,9 +132,11 @@ func syncCloud() (err error) {
 				tenCentYunClient := tencent.NewTencentYun(t.AccountSecret,t.AccountKey,regionList)
 				if t.ResourceType == 1 {
 					err = tenCentYunClient.TccList(t.ResourceModel)
+
 				}
 				if err != nil {
 					errValue := fmt.Sprintf("同步腾讯云资源失败，%v", err)
+
 					log.Error(errValue)
 					panic(errValue)
 				}else {
@@ -146,11 +148,9 @@ func syncCloud() (err error) {
 			}else if t.AccountType == "huawei" {
 				regionList := make([]string, 0)
 				err = json.Unmarshal(t.Region,&regionList)
-				fmt.Println("2",err)
 				huaWeiYunClient := huawei.NewhuaWeiYun(t.AccountSecret,t.AccountKey,regionList)
 				if t.ResourceType == 1 {
 					err = huaWeiYunClient.EcsList(t.ResourceModel)
-					fmt.Println("1",err)
 				}
 				if err != nil {
 					errValue := fmt.Sprintf("同步华为云资源失败，%v", err)

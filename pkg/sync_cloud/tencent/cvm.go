@@ -5,6 +5,7 @@ import (
 	"fiy/app/cmdb/models/resource"
 	orm "fiy/common/global"
 	"fiy/common/log"
+	"fiy/pkg/es"
 	"fiy/tools"
 	"fmt"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
@@ -55,7 +56,7 @@ func (c *tenCetYun) TccList(infoID int)(err error) {
 		if int(*response.Response.TotalCount) > 0{
 			b := int(*response.Response.TotalCount)/100 +1
 
-			for i:=0; i > b; i++ {
+			for i:=0; i < b; i++ {
 				request.Offset = common.Int64Ptr(int64(100 * i))
 				request.Limit = common.Int64Ptr(100)
 				r, err := cvmClient.DescribeInstances(request)
@@ -101,6 +102,7 @@ func (c *tenCetYun) TccList(infoID int)(err error) {
 			Columns:   []clause.Column{{Name: "uuid"}},
 			DoUpdates: clause.AssignmentColumns([]string{"data"}),
 		}).Create(&dataList).Error
+        es.EsClient.Add(dataList)
 		return
 
 }

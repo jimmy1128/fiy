@@ -2,15 +2,14 @@ package es
 
 import (
 	"context"
+	"fiy/app/cmdb/models/resource"
 	fiyLog "fiy/common/log"
 	"fmt"
+	"github.com/olivere/elastic/v7"
+	"github.com/spf13/viper"
 	"log"
 	"os"
 	"time"
-
-	"github.com/spf13/viper"
-
-	"github.com/olivere/elastic/v7"
 )
 
 /*
@@ -19,6 +18,7 @@ import (
 
 type EsClientType struct {
 	EsClient *elastic.Client
+
 }
 
 var EsClient EsClientType //连接类型
@@ -30,14 +30,15 @@ func Init() {
 		host           = viper.GetString("settings.es.host")
 		esClientParams []elastic.ClientOptionFunc
 	)
-
 	esClientParams = []elastic.ClientOptionFunc{
+
 		elastic.SetURL(host),
 		elastic.SetSniff(false),
 		elastic.SetHealthcheckInterval(10 * time.Second),
 		elastic.SetGzip(true),
 		elastic.SetErrorLog(log.New(os.Stderr, "ELASTIC ", log.LstdFlags)),
 		elastic.SetInfoLog(log.New(os.Stdout, "", log.LstdFlags)),
+
 	}
 
 	if viper.GetString("settings.es.user") != "" && viper.GetString("settings.es.password") != "" {
@@ -61,6 +62,8 @@ func Init() {
 	if err != nil {
 		fiyLog.Fatal(err)
 	}
+
+
 	fiyLog.Infof("Elasticsearch version %s\n", esVersion)
 	fiyLog.Info("connect es success，", EsClient.EsClient)
 }
@@ -84,4 +87,31 @@ func (e EsClientType) Query(value interface{}, page int, limit int) (searchResul
 
 	fiyLog.Infof("查询消耗时间 %d ms, 结果总数: %d\n", searchResult.TookInMillis, searchResult.TotalHits())
 	return
+}
+//索引
+func (e EsClientType) Add (dataList  []resource.Data)(){
+	ctx := context.Background()
+	exists, err := EsClient.EsClient.IndexExists("cmdb_resource_data").Do(ctx)
+	if err != nil {
+		// Handle error
+		panic(err)
+	}
+	if !exists {
+		// weibo索引不存在，则创建一个
+		_, err := EsClient.EsClient.CreateIndex("cmdb_resource_data").Do(ctx)
+		if err != nil {
+			// Handle error
+			panic(err)
+		}
+	}
+	for _, data := range dataList {
+		put1, err :=EsClient.EsClient.Index().Index("cmdb_resource_data").Id(string(data.Id)).BodyJson(dataList).Do(ctx)
+		if err != nil {
+			// Handle error
+			panic(err)
+
+		}
+		fmt.Printf("文档Id %s, 索引名 %s\n", put1.Id, put1.Index)
+	}
+
 }
