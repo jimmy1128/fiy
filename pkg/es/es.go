@@ -90,25 +90,16 @@ func (e EsClientType) Query(value interface{}, page int, limit int) (searchResul
 }
 //索引
 func (e EsClientType) Add (dataList  []resource.Data)(err error){
-
-	client, err := elastic.NewClient(
-		elastic.SetURL("http://127.0.0.1:9200", "http://127.0.0.1:9201"),
-		elastic.SetBasicAuth("user", "secret"))
-	if err != nil {
-		// Handle error
-		fmt.Printf("连接失败: %v\n", err)
-	} else {
-		fmt.Println("连接成功")
-	}
 	ctx := context.Background()
-	exists, err := client.IndexExists("cmdb_resource_data").Do(ctx)
+
+	exists, err := e.EsClient.IndexExists("cmdb_resource_data").Do(ctx)
 	if err != nil {
 		// Handle error
 		panic(err)
 	}
 	if !exists {
-		// weibo索引不存在，则创建一个
-		_, err := client.CreateIndex("cmdb_resource_data").Do(ctx)
+		// cmdb_resource_data索引不存在，则创建一个
+		_, err := e.EsClient.CreateIndex("cmdb_resource_data").Do(ctx)
 		if err != nil {
 			// Handle error
 			panic(err)
@@ -122,15 +113,12 @@ func (e EsClientType) Add (dataList  []resource.Data)(err error){
 		d.InfoName = data.InfoName
 		d.Data = data.Data
 
-		put1, err :=client.Index().Index("cmdb_resource_data").Id(d.Uuid).BodyJson(d).Do(ctx)
+		_, err :=e.EsClient.Index().Index("cmdb_resource_data").Id(d.Uuid).BodyJson(d).Do(ctx)
 		if err != nil {
 			// Handle error
 			panic(err)
-
 		}
-		fmt.Printf("文档Id %s, 索引名 %s\n", put1.Id, put1.Index)
 	}
 
-	//}
 return err
 }
