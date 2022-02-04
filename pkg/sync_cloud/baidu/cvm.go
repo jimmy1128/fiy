@@ -98,6 +98,9 @@ func (b *baiDuYun) BccList(infoID int,infoName string) (err error) {
 		Columns:   []clause.Column{{Name: "uuid"}},
 		DoUpdates: clause.AssignmentColumns([]string{"data"}),
 	}).Create(&instancesList).Error
+	//获取数据库的数据
+	orm.Eloquent.Model(&resource.Data{}).Where("info_id = ?", infoID).Find(&instancesList)
+	//添加到es
 	err = es.EsClient.Add(instancesList)
 	if err != nil {
 		log.Errorf("索引数据失败，%v", err)

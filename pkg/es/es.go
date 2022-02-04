@@ -108,16 +108,13 @@ func (e EsClientType) Add (dataList  []resource.Data)(err error){
 	var d resource.Data
 
 	for _, data := range dataList {
-		d.Uuid = data.Uuid
+		d.Id = data.Id
 		d.InfoId = data.InfoId
 		d.InfoName = data.InfoName
 		d.Data = data.Data
 
-		_, err :=e.EsClient.Index().Index("cmdb_resource_data").Id(d.Uuid).BodyJson(d).Do(ctx)
-		if err != nil {
-			// Handle error
-			panic(err)
-		}
+		e.EsClient.Index().Index("cmdb_resource_data").Id(string(d.Id)).BodyJson(d).Do(ctx)
+
 	}
 
 return err
