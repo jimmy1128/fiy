@@ -79,10 +79,25 @@ func (c *tenCetYun) TccList(infoID int,infoName string)(err error) {
 			}
 			tmp := make(map[string]interface{})
 			err = json.Unmarshal(d, &tmp)
+
 			if err != nil {
 				log.Errorf("反序列化数据失败，", err)
 				return
 			}
+			tmp["DiskId"] = *instance.SystemDisk.DiskId
+			tmp["DiskSize"] = *instance.SystemDisk.DiskSize
+			tmp["DiskType"] = *instance.SystemDisk.DiskType
+			delete(tmp, "SystemDisk")
+			tmp["ProjectId"] = *instance.Placement.ProjectId
+			tmp["Zone"] = *instance.Placement.Zone
+			delete(tmp, "Placement")
+			tmp["AsVpcGateway"] = *instance.VirtualPrivateCloud.AsVpcGateway
+			tmp["SubnetId"] = *instance.VirtualPrivateCloud.SubnetId
+			tmp["VpcId"] = *instance.VirtualPrivateCloud.VpcId
+			delete(tmp, "VirtualPrivateCloud")
+			tmp["InternetChargeType"] = *instance.InternetAccessible.InternetChargeType
+			tmp["InternetMaxBandwidthOut"] = *instance.InternetAccessible.InternetMaxBandwidthOut
+			delete(tmp, "InternetAccessible")
 			tmp["instancesID"] = tmp["id"]
 			delete(tmp, "id")
 			d, err = json.Marshal(tmp)

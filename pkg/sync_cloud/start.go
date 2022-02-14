@@ -2,6 +2,7 @@ package sync_cloud
 
 import (
 	"encoding/json"
+	"fiy/pkg/sync_cloud/azure"
 	"fiy/pkg/sync_cloud/baidu"
 	"fiy/pkg/sync_cloud/huawei"
 	"fiy/pkg/sync_cloud/tencent"
@@ -34,6 +35,8 @@ type cloudInfo struct {
 	AccountStatus bool   `json:"account_status"`
 	AccountSecret string `json:"account_secret"`
 	AccountKey    string `json:"account_key"`
+	AccountTenant    string `json:"account_tenant"`
+	AccountSubscript   string `json:"account_subscript"`
 }
 
 // 执行同步任务
@@ -154,7 +157,23 @@ func syncCloud() (err error) {
 				}
 				if err != nil {
 					errValue := fmt.Sprintf("同步华为云资源失败，%v", err)
-					fmt.Println(errValue)
+					log.Error(errValue)
+					panic(errValue)
+				}else {
+					c <- syncStatus{
+						ID: t.Id,
+						Status: true,
+					}
+				}
+			}else if t.AccountType == "azure" {
+				regionList := make([]string, 0)
+				err = json.Unmarshal(t.Region,&regionList)
+				huaWeiYunClient := azure.NewAzure(t.AccountSecret,t.AccountTenant,t.AccountKey,t.AccountSubscript,regionList)
+				if t.ResourceType == 1 {
+					err = huaWeiYunClient.ArmList(t.ResourceModel,t.Name)
+				}
+				if err != nil {
+					errValue := fmt.Sprintf("同步微软云资源失败，%v", err)
 					log.Error(errValue)
 					panic(errValue)
 				}else {

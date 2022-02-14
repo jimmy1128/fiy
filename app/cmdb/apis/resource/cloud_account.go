@@ -171,8 +171,10 @@ func EditCloudAccount(c *gin.Context) {
 		"name":     account.Name,
 		"type":     account.Type,
 		"status":   account.Status,
+		"tenant":   account.Tenant,
 		"secret":   account.Secret,
 		"key":      account.Key,
+		"subscript": account.Subscript,
 		"modifier": tools.GetUserId(c),
 		"remarks":  account.Remarks,
 	}).Error
