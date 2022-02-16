@@ -9,7 +9,9 @@ import (
 	"fiy/pkg/es"
 	"fiy/tools"
 	"fmt"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork"
 	"gorm.io/gorm/clause"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 
@@ -124,4 +126,97 @@ func (e *azure)ArmList(infoID int , infoName string )(err error){
 		}
 	}
 	return
+}
+
+func (e *azure)ArmNetworkList (infoID int,infoName string)(err error){
+	var (
+		dataList  []resource.Data
+	)
+	cred, err := azidentity.NewClientSecretCredential(
+		tools.Strip(e.Tk),
+		tools.Strip(e.Sk),
+		tools.Strip(e.Ak),
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("failed to obtain a credential: %v", err)
+	}
+	armClient := armnetwork.NewInterfacesClient(tools.Strip(e.SubK), cred, nil)
+	ctx := context.Background()
+	pager3 := armClient.ListAll(nil)
+	for {
+		nextResult := pager3.NextPage(ctx)
+		if err := pager3.Err(); err != nil {
+			log.Fatalf("failed to advance page: %v", err)
+		}
+		if !nextResult {
+			break
+		}
+		for _, instance1 := range pager3.PageResponse().Value {
+			networkInterface := strings.Split(*instance1.ID, "/")
+			client := armnetwork.NewInterfaceIPConfigurationsClient("fbc80d37-50e3-47c8-9485-958d2c1e38ae", cred, nil)
+			pager := client.List(networkInterface[4],
+				*instance1.Name,
+				nil)
+
+			for {
+				nextResult := pager.NextPage(ctx)
+				if err := pager.Err(); err != nil {
+					log.Errorf("failed to advance page: %v", err)
+				}
+				if !nextResult {
+					break
+				}
+				for _, instance := range pager.PageResponse().Value {
+
+					var d []byte
+					d, err = json.Marshal(instance.Properties)
+					if err != nil {
+						log.Errorf("序列化服务器数据失败，%v", err)
+						return
+					}
+					tmp := make(map[string]interface{})
+					err = json.Unmarshal(d, &tmp)
+
+					if err != nil {
+						log.Errorf("反序列化数据失败，", err)
+						return
+					}
+
+					tmp["ipName"] = *instance.Name
+					tmp["privateIPAddress"] = *instance.Properties.PrivateIPAddress
+					networkIp := strings.Split(*instance.Properties.PublicIPAddress.ID, "/")
+					networkName := strings.Split(*instance.ID, "/")
+
+					client2 := armnetwork.NewPublicIPAddressesClient("fbc80d37-50e3-47c8-9485-958d2c1e38ae", cred, nil)
+					res, err := client2.Get(ctx,
+						"gp-test",
+						networkIp[8],
+						&armnetwork.PublicIPAddressesClientGetOptions{Expand: nil})
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					tmp["networkName"] = networkName[8]
+					tmp["ipAddress"] = *res.PublicIPAddressesClientGetResult.Properties.IPAddress
+					//tmp["id"] =*instance.ID
+					delete(tmp, "provisioningState")
+					delete(tmp, "subnet")
+					delete(tmp, "publicIPAddress")
+					d, err = json.Marshal(tmp)
+					if err != nil {
+						log.Errorf("序列化服务器数据失败，%v", err)
+					}
+					dataList = append(dataList, resource.Data{
+						Uuid:   fmt.Sprintf("azure-arm-%s-%s", networkInterface[4],*instance.Name),
+						InfoId: infoID,
+						InfoName: infoName,
+						Status: 0,
+						Data:   d,
+					})
+				}
+			}
+		}
+	}
+return
 }

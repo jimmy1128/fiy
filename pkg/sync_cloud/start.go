@@ -49,7 +49,7 @@ func syncCloud() (err error) {
 	// 查询所有的任务列表
 	err = orm.Eloquent.Model(&resource.CloudDiscovery{}).
 		Joins("left join cmdb_resource_cloud_account as crca on crca.id = cmdb_resource_cloud_discovery.cloud_account").
-		Select("cmdb_resource_cloud_discovery.*, crca.name as account_name, crca.type as account_type, crca.status as account_status, crca.secret as account_secret, crca.key as account_key").
+		Select("cmdb_resource_cloud_discovery.*, crca.name as account_name, crca.type as account_type, crca.status as account_status, crca.secret as account_secret, crca.key as account_key,crca.tenant as account_tenant, crca.subscript as account_subscript").
 		Where("crca.status = ? and cmdb_resource_cloud_discovery.status = ?", true, true).
 		Find(&cloudDiscoveryList).Error
 	if err != nil {
@@ -168,9 +168,12 @@ func syncCloud() (err error) {
 			}else if t.AccountType == "azure" {
 				regionList := make([]string, 0)
 				err = json.Unmarshal(t.Region,&regionList)
-				huaWeiYunClient := azure.NewAzure(t.AccountSecret,t.AccountTenant,t.AccountKey,t.AccountSubscript,regionList)
+				azureCloudClient := azure.NewAzure(t.AccountSecret,t.AccountTenant,t.AccountSubscript,t.AccountKey,regionList)
+				fmt.Println("1",t.AccountSecret,"2",t.AccountTenant,"3",t.AccountKey,"4",t.AccountSubscript,"5",regionList)
 				if t.ResourceType == 1 {
-					err = huaWeiYunClient.ArmList(t.ResourceModel,t.Name)
+					err = azureCloudClient.ArmList(t.ResourceModel,t.Name)
+					err = azureCloudClient.ArmNetworkList(t.ResourceModel,t.Name)
+				}else if t.ResourceType == 2{
 				}
 				if err != nil {
 					errValue := fmt.Sprintf("同步微软云资源失败，%v", err)
