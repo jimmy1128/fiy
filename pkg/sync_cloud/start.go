@@ -5,6 +5,7 @@ import (
 	"fiy/pkg/sync_cloud/azure"
 	"fiy/pkg/sync_cloud/baidu"
 	"fiy/pkg/sync_cloud/huawei"
+	"fiy/pkg/sync_cloud/qingyun"
 	"fiy/pkg/sync_cloud/tencent"
 	"fmt"
 	"time"
@@ -169,14 +170,33 @@ func syncCloud() (err error) {
 				regionList := make([]string, 0)
 				err = json.Unmarshal(t.Region,&regionList)
 				azureCloudClient := azure.NewAzure(t.AccountSecret,t.AccountTenant,t.AccountSubscript,t.AccountKey,regionList)
-				fmt.Println("1",t.AccountSecret,"2",t.AccountTenant,"3",t.AccountKey,"4",t.AccountSubscript,"5",regionList)
 				if t.ResourceType == 1 {
 					err = azureCloudClient.ArmList(t.ResourceModel,t.Name)
-					err = azureCloudClient.ArmNetworkList(t.ResourceModel,t.Name)
+					err = azureCloudClient.ArmAutoRelate(t.ResourceModel,t.Name)
 				}else if t.ResourceType == 2{
+					err = azureCloudClient.ArmNetworkList(t.ResourceModel,t.Name)
 				}
 				if err != nil {
 					errValue := fmt.Sprintf("同步微软云资源失败，%v", err)
+					log.Error(errValue)
+					panic(errValue)
+				}else {
+					c <- syncStatus{
+						ID: t.Id,
+						Status: true,
+					}
+				}
+			}else if t.AccountType == "qingYun"{
+				regionList := make([]string,0)
+				err = json.Unmarshal(t.Region,&regionList)
+				qingCloudClient := qingyun.NewQingYun(t.AccountSecret,t.AccountKey,regionList)
+				if t.ResourceType == 1 {
+					err = qingCloudClient.QcList(t.ResourceModel,t.Name)
+				} else if t.ResourceType == 2{
+					err = qingCloudClient.QcIpList(t.ResourceModel,t.Name)
+				}
+				if err != nil {
+					errValue := fmt.Sprintf("同步青云资源失败，%v", err)
 					log.Error(errValue)
 					panic(errValue)
 				}else {

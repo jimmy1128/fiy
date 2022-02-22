@@ -81,7 +81,6 @@ func (e *azure)ArmList(infoID int , infoName string )(err error){
 				delete(tmp, "hardwareProfile")
 				tmp["name"]=*instance.Name
 				tmp["location"] = *instance.Location
-
 				tmp["publisher"]= *instance.Properties.StorageProfile.ImageReference.Publisher
 				tmp["offer"]= *instance.Properties.StorageProfile.ImageReference.Offer
 				tmp["sku"]= *instance.Properties.StorageProfile.ImageReference.SKU
@@ -104,7 +103,7 @@ func (e *azure)ArmList(infoID int , infoName string )(err error){
 					return
 				}
 				dataList = append(dataList, resource.Data{
-					Uuid:   fmt.Sprintf("azure-arm-%s", *instance.Name),
+					Uuid:   fmt.Sprintf("azure-arm-(%s)", *instance.Name),
 					InfoId: infoID,
 					InfoName: infoName,
 					Status: 0,
@@ -131,6 +130,7 @@ func (e *azure)ArmList(infoID int , infoName string )(err error){
 func (e *azure)ArmNetworkList (infoID int,infoName string)(err error){
 	var (
 		dataList  []resource.Data
+
 	)
 	cred, err := azidentity.NewClientSecretCredential(
 		tools.Strip(e.Tk),
@@ -154,7 +154,18 @@ func (e *azure)ArmNetworkList (infoID int,infoName string)(err error){
 		}
 		for _, instance1 := range pager3.PageResponse().Value {
 			networkInterface := strings.Split(*instance1.ID, "/")
-			client := armnetwork.NewInterfaceIPConfigurationsClient("fbc80d37-50e3-47c8-9485-958d2c1e38ae", cred, nil)
+			//获取节点名称
+			var f []byte
+			f, err = json.Marshal(instance1.Properties.VirtualMachine)
+			id := make(map[string]interface{})
+			err = json.Unmarshal(f, &id)
+			var nodename string
+			if id["id"] != nil {
+				networkIp := strings.Split(id["id"].(string), "/")
+				nodename =networkIp[8]
+			}
+
+			client := armnetwork.NewInterfaceIPConfigurationsClient(tools.Strip(e.SubK), cred, nil)
 			pager := client.List(networkInterface[4],
 				*instance1.Name,
 				nil)
@@ -182,15 +193,15 @@ func (e *azure)ArmNetworkList (infoID int,infoName string)(err error){
 						log.Errorf("反序列化数据失败，", err)
 						return
 					}
-
+					tmp["nodeName"] = nodename
 					tmp["ipName"] = *instance.Name
 					tmp["privateIPAddress"] = *instance.Properties.PrivateIPAddress
 					networkIp := strings.Split(*instance.Properties.PublicIPAddress.ID, "/")
 					networkName := strings.Split(*instance.ID, "/")
 
-					client2 := armnetwork.NewPublicIPAddressesClient("fbc80d37-50e3-47c8-9485-958d2c1e38ae", cred, nil)
+					client2 := armnetwork.NewPublicIPAddressesClient(tools.Strip(e.SubK), cred, nil)
 					res, err := client2.Get(ctx,
-						"gp-test",
+						networkInterface[4],
 						networkIp[8],
 						&armnetwork.PublicIPAddressesClientGetOptions{Expand: nil})
 					if err != nil {
@@ -198,7 +209,7 @@ func (e *azure)ArmNetworkList (infoID int,infoName string)(err error){
 					}
 
 					tmp["networkName"] = networkName[8]
-					tmp["ipAddress"] = *res.PublicIPAddressesClientGetResult.Properties.IPAddress
+					tmp["ipAddress"] = *res.PublicIPAddressesClientGetResult.Properties.IPAddress + `(` + *res.PublicIPAddressesClientGetResult.Name+`)`
 					//tmp["id"] =*instance.ID
 					delete(tmp, "provisioningState")
 					delete(tmp, "subnet")
@@ -208,7 +219,7 @@ func (e *azure)ArmNetworkList (infoID int,infoName string)(err error){
 						log.Errorf("序列化服务器数据失败，%v", err)
 					}
 					dataList = append(dataList, resource.Data{
-						Uuid:   fmt.Sprintf("azure-arm-%s-%s", networkInterface[4],*instance.Name),
+						Uuid:   fmt.Sprintf("azure-arm-(%s)-(%s)",  nodename,*instance.Name),
 						InfoId: infoID,
 						InfoName: infoName,
 						Status: 0,
@@ -218,5 +229,48 @@ func (e *azure)ArmNetworkList (infoID int,infoName string)(err error){
 			}
 		}
 	}
+	err = orm.Eloquent.Model(&resource.Data{}).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "uuid"}},
+		DoUpdates: clause.AssignmentColumns([]string{"data"}),
+	}).Create(&dataList).Error
+	//获取数据库的数据
+	orm.Eloquent.Model(&resource.Data{}).Where("info_id = ?", infoID).Find(&dataList)
+	//添加到es
+	err = es.EsClient.Add(dataList)
+	if err != nil {
+		log.Errorf("索引数据失败，%v", err)
+		return
+	}
 return
+}
+
+func (e *azure)ArmAutoRelate (infoID int,infoName string)(err error){
+	var (
+		dataList  []resource.Data
+		relatedList []resource.DataRelated
+		dataSource  []resource.Data
+
+	)
+	orm.Eloquent.Model(&resource.Data{}).Where("info_id = ?", infoID).Find(&dataList)
+
+	for _, data := range dataList {
+		orm.Eloquent.Model(&resource.Data{}).Where("uuid LIKE ?", data.Uuid+"-%").Find(&dataSource)
+		for _, r := range dataSource {
+
+			relatedList = make([]resource.DataRelated, 0)
+			relatedList = append(relatedList, resource.DataRelated{
+				Source:      data.Id,
+				Target:       r.Id,
+				SourceInfoId: infoID,
+				TargetInfoId: r.InfoId,
+			})
+			err = orm.Eloquent.Create(&relatedList).Error
+			if err != nil {
+				log.Errorf("创建数据关联失败，%v", err)
+				return
+			}
+		}
+
+	}
+	return
 }
