@@ -185,10 +185,14 @@ func (f *qingCloud) QcIpList(infoID int,infoName string)(err error){
 				log.Errorf("反序列化数据失败，", err)
 				return
 			}
-
+			delete(tmp,"status")
 			tmp["eip_group_name"]= *instance.EIPGroup.EIPGroupName
 			tmp["resource_id"]= *instance.Resource.ResourceID
-
+			if *instance.Status == "associated"{
+				tmp["status"] = "使用中"
+			}else if *instance.Status == "available"{
+				tmp["status"] = "空"
+			}
 			delete(tmp,"billing_mode")
 			delete(tmp,"eip_group")
 			delete(tmp,"resource")
