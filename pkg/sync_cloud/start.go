@@ -192,6 +192,7 @@ func syncCloud() (err error) {
 				qingCloudClient := qingyun.NewQingYun(t.AccountSecret,t.AccountKey,regionList)
 				if t.ResourceType == 1 {
 					err = qingCloudClient.QcList(t.ResourceModel,t.Name)
+					err = qingCloudClient.GcAutoRelate(t.ResourceModel,t.Name)
 				} else if t.ResourceType == 2{
 					err = qingCloudClient.QcIpList(t.ResourceModel,t.Name)
 				}

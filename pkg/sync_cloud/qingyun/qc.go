@@ -106,7 +106,7 @@ func (f *qingCloud) QcList(infoID int,infoName string)(err error){
 				return
 			}
 			dataList = append(dataList, resource.Data{
-				Uuid:   fmt.Sprintf("qingyun-qc-%s", *instance.InstanceID),
+				Uuid:   fmt.Sprintf("qingyun-qc-(%s)", *instance.InstanceID),
 				InfoId: infoID,
 				InfoName: infoName,
 				Status: 0,
@@ -130,7 +130,7 @@ func (f *qingCloud) QcList(infoID int,infoName string)(err error){
 func (f *qingCloud) QcIpList(infoID int,infoName string)(err error){
 	var (
 		qcIpList []*qc.EIP
-		dataList  []resource.Data
+		dataList1  []resource.Data
 		response  *qc.DescribeEIPsOutput
 		qcService *qc.QingCloudService
 		gcEip *qc.EIPService
@@ -187,7 +187,6 @@ func (f *qingCloud) QcIpList(infoID int,infoName string)(err error){
 			}
 
 			tmp["eip_group_name"]= *instance.EIPGroup.EIPGroupName
-			//tmp["nic_id"]= *instance.Resource
 			tmp["resource_id"]= *instance.Resource.ResourceID
 
 			delete(tmp,"billing_mode")
@@ -198,8 +197,8 @@ func (f *qingCloud) QcIpList(infoID int,infoName string)(err error){
 				log.Errorf("序列化服务器数据失败，%v", err)
 				return
 			}
-			dataList = append(dataList, resource.Data{
-				Uuid:   fmt.Sprintf("qingyun-qc-%s-%s", *instance.Resource.ResourceID,*instance.EIPID),
+			dataList1 = append(dataList1, resource.Data{
+				Uuid:   fmt.Sprintf("qingyun-qc-(%s)-(%s)", *instance.Resource.ResourceID,*instance.EIPID),
 				InfoId: infoID,
 				InfoName: infoName,
 				Status: 0,
@@ -209,13 +208,44 @@ func (f *qingCloud) QcIpList(infoID int,infoName string)(err error){
 		err = orm.Eloquent.Model(&resource.Data{}).Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "uuid"}},
 			DoUpdates: clause.AssignmentColumns([]string{"data"}),
-		}).Create(&dataList).Error
-		orm.Eloquent.Model(&resource.Data{}).Where("info_id = ?", infoID).Find(&dataList)
-		err = es.EsClient.Add(dataList)
+		}).Create(&dataList1).Error
+		orm.Eloquent.Model(&resource.Data{}).Where("info_id = ?", infoID).Find(&dataList1)
+		err = es.EsClient.Add(dataList1)
 		if err != nil {
 			log.Errorf("索引数据失败，%v", err)
 			return
 		}
 	}
 return
+}
+
+func (f *qingCloud)GcAutoRelate (infoID int,infoName string)(err error){
+	var (
+		dataList  []resource.Data
+		relatedList []resource.DataRelated
+		dataSource  []resource.Data
+
+	)
+	orm.Eloquent.Model(&resource.Data{}).Where("info_id = ?", infoID).Find(&dataList)
+
+	for _, data := range dataList {
+		orm.Eloquent.Model(&resource.Data{}).Where("uuid LIKE ?", data.Uuid+"-%").Find(&dataSource)
+		for _, r := range dataSource {
+
+			relatedList = make([]resource.DataRelated, 0)
+			relatedList = append(relatedList, resource.DataRelated{
+				Source:      data.Id,
+				Target:       r.Id,
+				SourceInfoId: infoID,
+				TargetInfoId: r.InfoId,
+			})
+			err = orm.Eloquent.Create(&relatedList).Error
+			if err != nil {
+				log.Errorf("创建数据关联失败，%v", err)
+				return
+			}
+		}
+
+	}
+	return
 }
