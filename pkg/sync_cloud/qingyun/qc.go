@@ -11,6 +11,7 @@ import (
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	"github.com/yunify/qingcloud-sdk-go/config"
 	"gorm.io/gorm/clause"
+	"strings"
 
 	qc "github.com/yunify/qingcloud-sdk-go/service"
 )
@@ -202,7 +203,8 @@ func (f *qingCloud) QcIpList(infoID int,infoName string)(err error){
 				return
 			}
 			dataList1 = append(dataList1, resource.Data{
-				Uuid:   fmt.Sprintf("qingyun-qc-(%s)-(%s)", *instance.Resource.ResourceID,*instance.EIPID),
+				Uuid:   fmt.Sprintf("qingyun-qc-(%s)",*instance.EIPID),
+				Instance: *instance.Resource.ResourceID,
 				InfoId: infoID,
 				InfoName: infoName,
 				Status: 0,
@@ -223,6 +225,9 @@ func (f *qingCloud) QcIpList(infoID int,infoName string)(err error){
 return
 }
 
+func QcAttachIp () {
+
+}
 func (f *qingCloud)GcAutoRelate (infoID int,infoName string)(err error){
 	var (
 		dataList  []resource.Data
@@ -233,7 +238,9 @@ func (f *qingCloud)GcAutoRelate (infoID int,infoName string)(err error){
 	orm.Eloquent.Model(&resource.Data{}).Where("info_id = ?", infoID).Find(&dataList)
 
 	for _, data := range dataList {
-		orm.Eloquent.Model(&resource.Data{}).Where("uuid LIKE ?", data.Uuid+"-%").Find(&dataSource)
+		s := strings.Split(data.Uuid,"(")
+		i := strings.Split(s[1], ")")
+		orm.Eloquent.Model(&resource.Data{}).Where("instance = ?", i[0]).Find(&dataSource)
 		for _, r := range dataSource {
 
 			relatedList = make([]resource.DataRelated, 0)

@@ -143,6 +143,7 @@ func GetRelatedModelFields(c *gin.Context) {
 
 	modelID = c.Param("id")
 	dataID = c.DefaultQuery("data_id", "")
+	fmt.Println(modelID,dataID)
 	if dataID == "" {
 		app.Error(c, -1, nil, "参数data_id不能为空")
 		return
@@ -156,7 +157,7 @@ func GetRelatedModelFields(c *gin.Context) {
 		app.Error(c, -1, err, "查询关联的模型ID失败")
 		return
 	}
-
+fmt.Println(relatedModelIDs)
 	// 查询关联模型的信息
 	err = orm.Eloquent.Model(&model.Info{}).
 		Where("id in ?", relatedModelIDs).
@@ -165,7 +166,7 @@ func GetRelatedModelFields(c *gin.Context) {
 		app.Error(c, -1, err, "查询关联模型信息失败")
 		return
 	}
-
+fmt.Println(relatedModelFields)
 	// 查询关联模型的字段
 	dataMap = make(map[string]interface{})
 	for _, f := range relatedModelFields {
@@ -189,12 +190,14 @@ func GetRelatedModelFields(c *gin.Context) {
 			Select("d.*, cmdb_resource_data_related.id as related_id").
 			Where("cmdb_resource_data_related.source = ? and cmdb_resource_data_related.target_info_id = ?", dataID, f.Id).
 			Find(&datas).Error
+		fmt.Println(datas)
 		if err != nil {
 			app.Error(c, -1, err, "查询关联数据ID失败")
 			return
 		}
 
 		for _, d := range datas {
+			fmt.Println(d)
 			var dataJsonMap map[string]interface{}
 			err = json.Unmarshal(d.Data.Data, &dataJsonMap)
 			if err != nil {

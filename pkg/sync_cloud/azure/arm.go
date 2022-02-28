@@ -219,7 +219,8 @@ func (e *azure)ArmNetworkList (infoID int,infoName string)(err error){
 						log.Errorf("序列化服务器数据失败，%v", err)
 					}
 					dataList = append(dataList, resource.Data{
-						Uuid:   fmt.Sprintf("azure-arm-(%s)-(%s)",  nodename,*instance.Name),
+						Uuid:   fmt.Sprintf("azure-arm-(%s)",*instance.Name),
+						Instance: nodename,
 						InfoId: infoID,
 						InfoName: infoName,
 						Status: 0,
@@ -254,7 +255,9 @@ func (e *azure)ArmAutoRelate (infoID int,infoName string)(err error){
 	orm.Eloquent.Model(&resource.Data{}).Where("info_id = ?", infoID).Find(&dataList)
 
 	for _, data := range dataList {
-		orm.Eloquent.Model(&resource.Data{}).Where("uuid LIKE ?", data.Uuid+"-%").Find(&dataSource)
+		s := strings.Split(data.Uuid,"(")
+		i := strings.Split(s[1], ")")
+		orm.Eloquent.Model(&resource.Data{}).Where("instance = ?", i[0]).Find(&dataSource)
 		for _, r := range dataSource {
 
 			relatedList = make([]resource.DataRelated, 0)
