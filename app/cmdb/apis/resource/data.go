@@ -7,6 +7,7 @@ import (
 	"fiy/common/actions"
 	orm "fiy/common/global"
 	"fiy/common/pagination"
+	"fiy/pkg/sync_cloud/qingyun"
 	"fiy/tools/app"
 	"fmt"
 	"strconv"
@@ -509,6 +510,13 @@ targetContinue:
 			SourceInfoId: params.SourceInfoId,
 			TargetInfoId: params.TargetInfoId,
 		})
+		if params.TargetInfoId == 19 {
+			err = qingyun.QcAttachIp(params.Source,target,params.TargetInfoId)
+			if err != nil {
+				app.Error(c, -1, err, "查询现有的数据关联")
+				return
+			}
+		}
 	}
 
 	if len(relatedParams) > 0 {

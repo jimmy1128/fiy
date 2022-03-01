@@ -12,6 +12,7 @@ import (
 	"github.com/yunify/qingcloud-sdk-go/config"
 	"gorm.io/gorm/clause"
 	"strings"
+	"time"
 
 	qc "github.com/yunify/qingcloud-sdk-go/service"
 )
@@ -225,7 +226,74 @@ func (f *qingCloud) QcIpList(infoID int,infoName string)(err error){
 return
 }
 
-func QcAttachIp () {
+func QcAttachIp (sourceId int , targetId int , targetInfoId int)(err error) {
+	var (
+
+		qcService *qc.QingCloudService
+		gcNic *qc.NicService
+		source resource.Data
+		target resource.Data
+		account resource.CloudAccount
+		discovery_account resource.CloudDiscovery
+	)
+	err = orm.Eloquent.Model(&resource.CloudDiscovery{}).
+		Where("resource_model= ?",targetInfoId).
+		Find(&discovery_account).Error
+	err = orm.Eloquent.Model(&resource.CloudDiscovery{}).
+		Where("resource_model= ?",discovery_account.CloudAccount).
+		Find(&account).Error
+
+	err = orm.Eloquent.Model(&resource.Data{}).
+		Where("id = ? ", sourceId).
+		Find(&source).Error
+	err = orm.Eloquent.Model(&resource.Data{}).
+		Where("id = ? ", targetId).
+		Find(&target).Error
+
+	configuration,err := config.New(tools.Strip(account.Secret), tools.Strip(account.Key))
+	if err != nil {
+		log.Errorf("创建客户端连接失败，%v", err)
+	}
+	configuration.Host = "api.greyconsole.com"
+	configuration.Protocol = "https"
+	configuration.Port = 443
+	//官方api
+	qcService, err = qc.Init(configuration)
+	// 自定义api
+	qcServiceS, err := Init(configuration)
+	regionList := make([]string, 0)
+	err = json.Unmarshal(discovery_account.Region, &regionList)
+	for _, s := range regionList {
+
+		gcNic, err = qcService.Nic(tools.Strip(s))
+		gceips, err := qcServiceS.EIPS(tools.Strip(s))
+		if err != nil {
+			log.Errorf("创建客户端连接失败，%v", err)
+		}
+		iOutputeip, _ := gcNic.DescribeNics(&qc.DescribeNicsInput{
+			Owner:  common.StringPtr("usr-xGPBLqoH"),
+			Status: common.StringPtr("available"),
+			Limit:  common.IntPtr(1),
+		})
+		for _, nic := range iOutputeip.NICSet {
+			args := []string{*nic.NICID}
+			Str := common.StringPtr(format(source.Uuid))
+			iOutputenics, _ := gcNic.AttachNics(&qc.AttachNicsInput{Instance: Str, Nics: common.StringPtrs(args)})
+			retCode := common.IntPtr(0)
+			time.Sleep(5 * time.Second)
+			if *iOutputenics.RetCode == *retCode {
+
+				iOutputeipss, _ := gceips.AssociateEIPss(&AssociateEIPInput{
+					EIP:      common.StringPtr(format(target.Uuid)),
+					Instance: Str,
+					Nic:      nic.NICID, //common.StringPtr("52:54:ca:04:0d:30")
+				})
+				fmt.Println(*iOutputeipss.RetCode)
+			}
+
+		}
+	}
+return
 
 }
 func (f *qingCloud)GcAutoRelate (infoID int,infoName string)(err error){
@@ -238,9 +306,7 @@ func (f *qingCloud)GcAutoRelate (infoID int,infoName string)(err error){
 	orm.Eloquent.Model(&resource.Data{}).Where("info_id = ?", infoID).Find(&dataList)
 
 	for _, data := range dataList {
-		s := strings.Split(data.Uuid,"(")
-		i := strings.Split(s[1], ")")
-		orm.Eloquent.Model(&resource.Data{}).Where("instance = ?", i[0]).Find(&dataSource)
+		orm.Eloquent.Model(&resource.Data{}).Where("instance = ?", format(data.Uuid)).Find(&dataSource)
 		for _, r := range dataSource {
 
 			relatedList = make([]resource.DataRelated, 0)
@@ -259,4 +325,11 @@ func (f *qingCloud)GcAutoRelate (infoID int,infoName string)(err error){
 
 	}
 	return
+}
+
+func format (string2 string) string {
+	s := strings.Split(string2,"(")
+	i := strings.Split(s[1], ")")
+	return i[0]
+
 }

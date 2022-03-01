@@ -4,7 +4,6 @@ import (
 	"fiy/app/cmdb/models/resource"
 	orm "fiy/common/global"
 	"fiy/tools/app"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,7 +22,6 @@ func DataRelated(c *gin.Context) {
 		}
 		relatedList []resource.DataRelated
 	)
-
 	err = c.ShouldBind(&relatedValue)
 	if err != nil {
 		app.Error(c, -1, err, "绑定参数失败")
