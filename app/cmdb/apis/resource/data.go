@@ -485,7 +485,14 @@ func AddRelatedData(c *gin.Context) {
 		app.Error(c, -1, err, "参数绑定失败")
 		return
 	}
-
+fmt.Println(params)
+	if params.TargetInfoId == 19 {
+		err = qingyun.QcAttachIp(params.Source,params.Target,params.TargetInfoId)
+		if err != nil {
+			app.Error(c, -1, err, "查询现有的数据关联")
+			return
+		}
+	}
 	// 查询现有的数据关联
 	err = orm.Eloquent.Model(&resource.DataRelated{}).
 		Where("source = ? and source_info_id = ?", params.Source, params.SourceInfoId).
@@ -510,13 +517,7 @@ targetContinue:
 			SourceInfoId: params.SourceInfoId,
 			TargetInfoId: params.TargetInfoId,
 		})
-		if params.TargetInfoId == 19 {
-			err = qingyun.QcAttachIp(params.Source,target,params.TargetInfoId)
-			if err != nil {
-				app.Error(c, -1, err, "查询现有的数据关联")
-				return
-			}
-		}
+
 	}
 
 	if len(relatedParams) > 0 {

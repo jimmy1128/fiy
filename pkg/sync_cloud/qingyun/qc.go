@@ -226,7 +226,7 @@ func (f *qingCloud) QcIpList(infoID int,infoName string)(err error){
 return
 }
 
-func QcAttachIp (sourceId int , targetId int , targetInfoId int)(err error) {
+func QcAttachIp (sourceId int , targetId []int , targetInfoId int)(err error) {
 	var (
 
 		qcService *qc.QingCloudService
@@ -239,58 +239,60 @@ func QcAttachIp (sourceId int , targetId int , targetInfoId int)(err error) {
 	err = orm.Eloquent.Model(&resource.CloudDiscovery{}).
 		Where("resource_model= ?",targetInfoId).
 		Find(&discovery_account).Error
-	err = orm.Eloquent.Model(&resource.CloudDiscovery{}).
-		Where("resource_model= ?",discovery_account.CloudAccount).
+	err = orm.Eloquent.Model(&resource.CloudAccount{}).
+		Where("id= ?",discovery_account.CloudAccount).
 		Find(&account).Error
 
 	err = orm.Eloquent.Model(&resource.Data{}).
 		Where("id = ? ", sourceId).
 		Find(&source).Error
-	err = orm.Eloquent.Model(&resource.Data{}).
-		Where("id = ? ", targetId).
-		Find(&target).Error
+	for _, i2 := range targetId {
+		err = orm.Eloquent.Model(&resource.Data{}).
+			Where("id = ? ", i2).
+			Find(&target).Error
 
-	configuration,err := config.New(tools.Strip(account.Secret), tools.Strip(account.Key))
-	if err != nil {
-		log.Errorf("创建客户端连接失败，%v", err)
-	}
-	configuration.Host = "api.greyconsole.com"
-	configuration.Protocol = "https"
-	configuration.Port = 443
-	//官方api
-	qcService, err = qc.Init(configuration)
-	// 自定义api
-	qcServiceS, err := Init(configuration)
-	regionList := make([]string, 0)
-	err = json.Unmarshal(discovery_account.Region, &regionList)
-	for _, s := range regionList {
-
-		gcNic, err = qcService.Nic(tools.Strip(s))
-		gceips, err := qcServiceS.EIPS(tools.Strip(s))
+		configuration, err := config.New(tools.Strip(account.Secret), tools.Strip(account.Key))
 		if err != nil {
 			log.Errorf("创建客户端连接失败，%v", err)
 		}
-		iOutputeip, _ := gcNic.DescribeNics(&qc.DescribeNicsInput{
-			Owner:  common.StringPtr("usr-xGPBLqoH"),
-			Status: common.StringPtr("available"),
-			Limit:  common.IntPtr(1),
-		})
-		for _, nic := range iOutputeip.NICSet {
-			args := []string{*nic.NICID}
-			Str := common.StringPtr(format(source.Uuid))
-			iOutputenics, _ := gcNic.AttachNics(&qc.AttachNicsInput{Instance: Str, Nics: common.StringPtrs(args)})
-			retCode := common.IntPtr(0)
-			time.Sleep(5 * time.Second)
-			if *iOutputenics.RetCode == *retCode {
+		configuration.Host = "api.greyconsole.com"
+		configuration.Protocol = "https"
+		configuration.Port = 443
+		//官方api
+		qcService, err = qc.Init(configuration)
+		// 自定义api
+		qcServiceS, err := Init(configuration)
+		regionList := make([]string, 0)
+		err = json.Unmarshal(discovery_account.Region, &regionList)
+		for _, s := range regionList {
 
-				iOutputeipss, _ := gceips.AssociateEIPss(&AssociateEIPInput{
-					EIP:      common.StringPtr(format(target.Uuid)),
-					Instance: Str,
-					Nic:      nic.NICID, //common.StringPtr("52:54:ca:04:0d:30")
-				})
-				fmt.Println(*iOutputeipss.RetCode)
+			gcNic, err = qcService.Nic(tools.Strip(s))
+			gceips, err := qcServiceS.EIPS(tools.Strip(s))
+			if err != nil {
+				log.Errorf("创建客户端连接失败，%v", err)
 			}
+			iOutputeip, _ := gcNic.DescribeNics(&qc.DescribeNicsInput{
+				Owner:  common.StringPtr("usr-xGPBLqoH"),
+				Status: common.StringPtr("available"),
+				Limit:  common.IntPtr(1),
+			})
+			for _, nic := range iOutputeip.NICSet {
+				args := []string{*nic.NICID}
+				Str := common.StringPtr(format(source.Uuid))
+				iOutputenics, _ := gcNic.AttachNics(&qc.AttachNicsInput{Instance: Str, Nics: common.StringPtrs(args)})
+				retCode := common.IntPtr(0)
+				time.Sleep(2 * time.Second)
+				if *iOutputenics.RetCode == *retCode {
 
+					iOutputeipss, _ := gceips.AssociateEIPss(&AssociateEIPInput{
+						EIP:      common.StringPtr(format(target.Uuid)),
+						Instance: Str,
+						Nic:      nic.NICID, //common.StringPtr("52:54:ca:04:0d:30")
+					})
+					fmt.Println(iOutputeipss)
+				}
+
+			}
 		}
 	}
 return
