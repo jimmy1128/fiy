@@ -232,7 +232,7 @@ func QcAttachIp (sourceId int , targetId []int , targetInfoId int)(err error) {
 		qcService *qc.QingCloudService
 		gcNic *qc.NicService
 		source resource.Data
-		target resource.Data
+
 		account resource.CloudAccount
 		discovery_account resource.CloudDiscovery
 	)
@@ -246,10 +246,7 @@ func QcAttachIp (sourceId int , targetId []int , targetInfoId int)(err error) {
 	err = orm.Eloquent.Model(&resource.Data{}).
 		Where("id = ? ", sourceId).
 		Find(&source).Error
-	for _, i2 := range targetId {
-		err = orm.Eloquent.Model(&resource.Data{}).
-			Where("id = ? ", i2).
-			Find(&target).Error
+
 
 		configuration, err := config.New(tools.Strip(account.Secret), tools.Strip(account.Key))
 		if err != nil {
@@ -265,7 +262,11 @@ func QcAttachIp (sourceId int , targetId []int , targetInfoId int)(err error) {
 		regionList := make([]string, 0)
 		err = json.Unmarshal(discovery_account.Region, &regionList)
 		for _, s := range regionList {
-
+			for _, i2 := range targetId {
+				var target resource.Data
+				err = orm.Eloquent.Model(&resource.Data{}).
+					Where("id = ? ", i2).
+					Find(&target).Error
 			gcNic, err = qcService.Nic(tools.Strip(s))
 			gceips, err := qcServiceS.EIPS(tools.Strip(s))
 			if err != nil {
@@ -283,7 +284,6 @@ func QcAttachIp (sourceId int , targetId []int , targetInfoId int)(err error) {
 				retCode := common.IntPtr(0)
 				time.Sleep(2 * time.Second)
 				if *iOutputenics.RetCode == *retCode {
-
 					iOutputeipss, _ := gceips.AssociateEIPss(&AssociateEIPInput{
 						EIP:      common.StringPtr(format(target.Uuid)),
 						Instance: Str,
@@ -294,7 +294,8 @@ func QcAttachIp (sourceId int , targetId []int , targetInfoId int)(err error) {
 
 			}
 		}
-	}
+		}
+
 return
 
 }
